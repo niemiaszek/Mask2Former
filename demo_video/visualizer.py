@@ -11,7 +11,7 @@ _ID_JITTERS = [[0.9047944201469568, 0.3241718265806123, 0.33443746665210006], [0
 
 
 class TrackVisualizer(Visualizer):
-    def __init__(self, img_rgb, metadata=None, scale=1.0, instance_mode=ColorMode.IMAGE):
+    def __init__(self, img_rgb, metadata=None, scale=1.0, instance_mode=ColorMode.IMAGE_BW):
         super().__init__(
             img_rgb, metadata=metadata, scale=scale, instance_mode=instance_mode
         )
@@ -65,7 +65,7 @@ class TrackVisualizer(Visualizer):
         colors = [
             self._jitter([x / 255 for x in self.metadata.thing_colors[c]], id) for id, c in enumerate(classes)
         ]
-        alpha = 0.5
+        alpha = 1.0
 
         if self._instance_mode == ColorMode.IMAGE_BW:
             self.output.img = self._create_grayscale_image(
@@ -73,14 +73,13 @@ class TrackVisualizer(Visualizer):
                 if preds.has("pred_masks")
                 else None
             )
-            alpha = 0.3
+            alpha = 1.0
 
-        self.overlay_instances(
+        _, true_binary = self.overlay_instances(
             masks=masks,
             boxes=boxes,
-            labels=labels,
             assigned_colors=colors,
             alpha=alpha,
         )
 
-        return self.output
+        return self.output, true_binary

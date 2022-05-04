@@ -6,7 +6,7 @@ import multiprocessing as mp
 from collections import deque
 import cv2
 import torch
-
+import numpy as np
 from visualizer import TrackVisualizer
 
 from detectron2.data import MetadataCatalog
@@ -17,7 +17,7 @@ from detectron2.utils.visualizer import ColorMode
 
 
 class VisualizationDemo(object):
-    def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False):
+    def __init__(self, cfg, instance_mode=ColorMode.IMAGE_BW, parallel=False):
         """
         Args:
             cfg (CfgNode):
@@ -38,7 +38,7 @@ class VisualizationDemo(object):
         else:
             self.predictor = VideoPredictor(cfg)
 
-    def run_on_video(self, frames):
+    def run_on_video(self, frames, confidence_threshold):
         """
         Args:
             frames (List[np.ndarray]): a list of images of shape (H, W, C) (in BGR order).
@@ -49,27 +49,32 @@ class VisualizationDemo(object):
         """
         vis_output = None
         predictions = self.predictor(frames)
+        thresholded_idxs = np.array(predictions["pred_scores"]) >= confidence_threshold
 
         image_size = predictions["image_size"]
-        pred_scores = predictions["pred_scores"]
-        pred_labels = predictions["pred_labels"]
-        pred_masks = predictions["pred_masks"]
+        pred_scores = [predictions["pred_scores"][i] for i in thresholded_idxs]
+        pred_labels = [predictions["pred_labels"][i] for i in thresholded_idxs]
+        pred_masks = [predictions["pred_masks"][i] for i in thresholded_idxs]
 
         frame_masks = list(zip(*pred_masks))
         total_vis_output = []
+        total_true_binary = []
         for frame_idx in range(len(frames)):
             frame = frames[frame_idx][:, :, ::-1]
+            frame = np.zeros_like(frame)
             visualizer = TrackVisualizer(frame, self.metadata, instance_mode=self.instance_mode)
             ins = Instances(image_size)
+            #ins = ins[ins.scores > confidence_threshold]
             if len(pred_scores) > 0:
                 ins.scores = pred_scores
                 ins.pred_classes = pred_labels
                 ins.pred_masks = torch.stack(frame_masks[frame_idx], dim=0)
 
-            vis_output = visualizer.draw_instance_predictions(predictions=ins)
+            vis_output, true_binary = visualizer.draw_instance_predictions(predictions=ins)
             total_vis_output.append(vis_output)
+            total_true_binary.append(true_binary)
 
-        return predictions, total_vis_output
+        return predictions, total_vis_output, total_true_binary
 
 
 class VideoPredictor(DefaultPredictor):

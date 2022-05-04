@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
         start_time = time.time()
         with autocast():
-            predictions, visualized_output = demo.run_on_video(vid_frames)
+            predictions, visualized_output, total_true_binary = demo.run_on_video(vid_frames, confidence_threshold=args.confidence_threshold)
         logger.info(
             "detected {} instances per frame in {:.2f}s".format(
                 len(predictions["pred_scores"]), time.time() - start_time
@@ -141,9 +141,10 @@ if __name__ == "__main__":
 
         if args.output:
             if args.save_frames:
-                for path, _vis_output in zip(args.input, visualized_output):
+                for path, _vis_output, true_binary in zip(args.input, visualized_output, total_true_binary):
                     out_filename = os.path.join(args.output, os.path.basename(path))
-                    _vis_output.save(out_filename)
+                    #_vis_output.save(out_filename)
+                    cv2.imwrite(out_filename, true_binary)
 
             H, W = visualized_output[0].height, visualized_output[0].width
 
